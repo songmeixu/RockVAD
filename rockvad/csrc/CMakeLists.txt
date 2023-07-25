@@ -3,6 +3,7 @@ include_directories(${CMAKE_SOURCE_DIR})
 set(rockvad_core_srcs
   parse-options.cc
   log.cc
+  ../c-api/rockvad.cc
   # endpoint.cc
   # features.cc
   # resample.cc
