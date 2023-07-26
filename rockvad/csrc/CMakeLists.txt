@@ -3,7 +3,7 @@ include_directories(${CMAKE_SOURCE_DIR})
 set(rockvad_core_srcs
   parse-options.cc
   log.cc
-  ../c-api/rockvad.cc
+  ../cpp-api/rockvad.cc
   # endpoint.cc
   # features.cc
   # resample.cc
@@ -25,7 +25,7 @@ target_link_libraries(rockvad-core PUBLIC
   # MNN_Express
   )
 
-if(SHERPA_ENABLE_NPU)
+if(ROCK_ENABLE_NPU)
   # message(STATUS "VIP LIBS: ${VIP_LIB_DIR} ${VIP_LIBS}")
   target_link_libraries(rockvad-core PUBLIC
     npulib

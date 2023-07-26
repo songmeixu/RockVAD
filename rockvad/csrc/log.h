@@ -18,8 +18,8 @@
 
 // The content in this file is copied/modified from
 // https://github.com/k2-fsa/k2/blob/master/k2/csrc/log.h
-#ifndef SHERPA_MNN_CSRC_LOG_H_
-#define SHERPA_MNN_CSRC_LOG_H_
+#ifndef ROCKVAD_CSRC_LOG_H_
+#define ROCKVAD_CSRC_LOG_H_
 
 #include <stdio.h>
 
@@ -27,7 +27,7 @@
 #include <sstream>
 #include <string>
 
-namespace sherpa_mnn {
+namespace rockvad {
 
 #if defined(NDEBUG)
 constexpr bool kDisableDebug = true;
@@ -44,13 +44,13 @@ enum class LogLevel {
   kFatal = 5,  // print message and abort the program
 };
 
-// They are used in SHERPA_LOG(xxx), so their names
+// They are used in ROCK_LOG(xxx), so their names
 // do not follow the google c++ code style
 //
 // You can use them in the following way:
 //
-//  SHERPA_LOG(TRACE) << "some message";
-//  SHERPA_LOG(DEBUG) << "some message";
+//  ROCK_LOG(TRACE) << "some message";
+//  ROCK_LOG(DEBUG) << "some message";
 
 #ifdef TRACE
 #undef TRACE
@@ -106,7 +106,7 @@ inline LogLevel GetCurrentLogLevel() {
   static LogLevel log_level = INFO;
   static std::once_flag init_flag;
   std::call_once(init_flag, []() {
-    const char *env_log_level = std::getenv("SHERPA_LOG_LEVEL");
+    const char *env_log_level = std::getenv("ROCK_LOG_LEVEL");
     if (env_log_level == nullptr) return;
 
     std::string s = env_log_level;
@@ -124,7 +124,7 @@ inline LogLevel GetCurrentLogLevel() {
       log_level = FATAL;
     else
       fprintf(stderr,
-              "Unknown SHERPA_LOG_LEVEL: %s"
+              "Unknown ROCK_LOG_LEVEL: %s"
               "\nSupported values are: "
               "TRACE, DEBUG, INFO, WARNING, ERROR, FATAL",
               s.c_str());
@@ -136,7 +136,7 @@ inline bool EnableAbort() {
   static std::once_flag init_flag;
   static bool enable_abort = false;
   std::call_once(init_flag, []() {
-    enable_abort = (std::getenv("SHERPA_ABORT") != nullptr);
+    enable_abort = (std::getenv("ROCK_ABORT") != nullptr);
   });
   return enable_abort;
 }
@@ -184,11 +184,11 @@ class Logger {
       gdb --args python /path/to/your/code.py
 
     (You can use `gdb` to debug the code. Please consider compiling
-    a debug version of sherpa.).
+    a debug version of rockvad.).
 
     If you are unable to fix it, please open an issue at:
 
-      https://github.com/k2-fsa/sherpa/issues/new
+      https://github.com/k2-fsa/rockvad/issues/new
     )";
     fprintf(stderr, "\n");
     if (level_ == FATAL) {
@@ -282,23 +282,23 @@ class Voidifier {
   void operator&(const Logger &)const {}
 };
 
-}  // namespace sherpa
+}  // namespace rockvad
 
 #if defined(__clang__) || defined(__GNUC__) || defined(__GNUG__) || \
     defined(__PRETTY_FUNCTION__)
 // for clang and GCC
-#define SHERPA_FUNC __PRETTY_FUNCTION__
+#define ROCK_FUNC __PRETTY_FUNCTION__
 #else
 // for other compilers
-#define SHERPA_FUNC __func__
+#define ROCK_FUNC __func__
 #endif
 
-#define SHERPA_STATIC_ASSERT(x) static_assert(x, "")
+#define ROCK_STATIC_ASSERT(x) static_assert(x, "")
 
-#define SHERPA_CHECK(x)                                                        \
+#define ROCK_CHECK(x)                                                        \
   (x) ? (void)0                                                                \
-      : ::sherpa_mnn::Voidifier() &                                                \
-            ::sherpa_mnn::Logger(__FILE__, SHERPA_FUNC, __LINE__, ::sherpa_mnn::FATAL) \
+      : ::rockvad::Voidifier() &                                                \
+            ::rockvad::Logger(__FILE__, ROCK_FUNC, __LINE__, ::rockvad::FATAL) \
                 << "Check failed: " << #x << " "
 
 // WARNING: x and y may be evaluated multiple times, but this happens only
@@ -309,59 +309,59 @@ class Voidifier {
 //
 //      auto x = Foo();
 //      auto y = Bar();
-//      SHERPA_CHECK_EQ(x, y) << "Some message";
+//      ROCK_CHECK_EQ(x, y) << "Some message";
 //
 //  And please avoid
 //
-//      SHERPA_CHECK_EQ(Foo(), Bar());
+//      ROCK_CHECK_EQ(Foo(), Bar());
 //
 //  if `Foo()` or `Bar()` causes some side effects, e.g., changing some
 //  local static variables or global variables.
-#define _SHERPA_CHECK_OP(x, y, op)                                             \
+#define _ROCK_CHECK_OP(x, y, op)                                             \
   ((x)op(y))                                                                   \
       ? (void)0                                                                \
-      : ::sherpa_mnn::Voidifier() &                                                \
-            ::sherpa_mnn::Logger(__FILE__, SHERPA_FUNC, __LINE__, ::sherpa_mnn::FATAL) \
+      : ::rockvad::Voidifier() &                                                \
+            ::rockvad::Logger(__FILE__, ROCK_FUNC, __LINE__, ::rockvad::FATAL) \
                 << "Check failed: " << #x << " " << #op << " " << #y << " ("   \
                 << (x) << " vs. " << (y) << ") "
 
-#define SHERPA_CHECK_EQ(x, y) _SHERPA_CHECK_OP(x, y, ==)
-#define SHERPA_CHECK_NE(x, y) _SHERPA_CHECK_OP(x, y, !=)
-#define SHERPA_CHECK_LT(x, y) _SHERPA_CHECK_OP(x, y, <)
-#define SHERPA_CHECK_LE(x, y) _SHERPA_CHECK_OP(x, y, <=)
-#define SHERPA_CHECK_GT(x, y) _SHERPA_CHECK_OP(x, y, >)
-#define SHERPA_CHECK_GE(x, y) _SHERPA_CHECK_OP(x, y, >=)
+#define ROCK_CHECK_EQ(x, y) _ROCK_CHECK_OP(x, y, ==)
+#define ROCK_CHECK_NE(x, y) _ROCK_CHECK_OP(x, y, !=)
+#define ROCK_CHECK_LT(x, y) _ROCK_CHECK_OP(x, y, <)
+#define ROCK_CHECK_LE(x, y) _ROCK_CHECK_OP(x, y, <=)
+#define ROCK_CHECK_GT(x, y) _ROCK_CHECK_OP(x, y, >)
+#define ROCK_CHECK_GE(x, y) _ROCK_CHECK_OP(x, y, >=)
 
-#define SHERPA_LOG(x) \
-  ::sherpa_mnn::Logger(__FILE__, SHERPA_FUNC, __LINE__, ::sherpa_mnn::x)
+#define ROCK_LOG(x) \
+  ::rockvad::Logger(__FILE__, ROCK_FUNC, __LINE__, ::rockvad::x)
 
 // ------------------------------------------------------------
 //       For debug check
 // ------------------------------------------------------------
-// If you define the macro "-D NDEBUG" while compiling sherpa, the following
+// If you define the macro "-D NDEBUG" while compiling rockvad, the following
 // macros are in fact empty and does nothing.
 
-#define SHERPA_DCHECK(x) ::sherpa_mnn::kDisableDebug ? (void)0 : SHERPA_CHECK(x)
+#define ROCK_DCHECK(x) ::rockvad::kDisableDebug ? (void)0 : ROCK_CHECK(x)
 
-#define SHERPA_DCHECK_EQ(x, y) \
-  ::sherpa_mnn::kDisableDebug ? (void)0 : SHERPA_CHECK_EQ(x, y)
+#define ROCK_DCHECK_EQ(x, y) \
+  ::rockvad::kDisableDebug ? (void)0 : ROCK_CHECK_EQ(x, y)
 
-#define SHERPA_DCHECK_NE(x, y) \
-  ::sherpa_mnn::kDisableDebug ? (void)0 : SHERPA_CHECK_NE(x, y)
+#define ROCK_DCHECK_NE(x, y) \
+  ::rockvad::kDisableDebug ? (void)0 : ROCK_CHECK_NE(x, y)
 
-#define SHERPA_DCHECK_LT(x, y) \
-  ::sherpa_mnn::kDisableDebug ? (void)0 : SHERPA_CHECK_LT(x, y)
+#define ROCK_DCHECK_LT(x, y) \
+  ::rockvad::kDisableDebug ? (void)0 : ROCK_CHECK_LT(x, y)
 
-#define SHERPA_DCHECK_LE(x, y) \
-  ::sherpa_mnn::kDisableDebug ? (void)0 : SHERPA_CHECK_LE(x, y)
+#define ROCK_DCHECK_LE(x, y) \
+  ::rockvad::kDisableDebug ? (void)0 : ROCK_CHECK_LE(x, y)
 
-#define SHERPA_DCHECK_GT(x, y) \
-  ::sherpa_mnn::kDisableDebug ? (void)0 : SHERPA_CHECK_GT(x, y)
+#define ROCK_DCHECK_GT(x, y) \
+  ::rockvad::kDisableDebug ? (void)0 : ROCK_CHECK_GT(x, y)
 
-#define SHERPA_DCHECK_GE(x, y) \
-  ::sherpa_mnn::kDisableDebug ? (void)0 : SHERPA_CHECK_GE(x, y)
+#define ROCK_DCHECK_GE(x, y) \
+  ::rockvad::kDisableDebug ? (void)0 : ROCK_CHECK_GE(x, y)
 
-#define SHERPA_DLOG(x) \
-  ::sherpa_mnn::kDisableDebug ? (void)0 : ::sherpa_mnn::Voidifier() & SHERPA_LOG(x)
+#define ROCK_DLOG(x) \
+  ::rockvad::kDisableDebug ? (void)0 : ::rockvad::Voidifier() & ROCK_LOG(x)
 
-#endif  // SHERPA_MNN_CSRC_LOG_H_
+#endif  // ROCKVAD_CSRC_LOG_H_

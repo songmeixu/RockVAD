@@ -37,12 +37,12 @@
 #include "rockvad/csrc/log.h"
 
 #ifdef _MSC_VER
-#define SHERPA_STRTOLL(cur_cstr, end_cstr) _strtoi64(cur_cstr, end_cstr, 10);
+#define ROCK_STRTOLL(cur_cstr, end_cstr) _strtoi64(cur_cstr, end_cstr, 10);
 #else
-#define SHERPA_STRTOLL(cur_cstr, end_cstr) strtoll(cur_cstr, end_cstr, 10);
+#define ROCK_STRTOLL(cur_cstr, end_cstr) strtoll(cur_cstr, end_cstr, 10);
 #endif
 
-namespace sherpa_mnn {
+namespace rockvad {
 
 /// Converts a string into an integer via strtoll and returns false if there was
 /// any kind of problem (i.e. the string was not an integer or contained extra
@@ -56,7 +56,7 @@ bool ConvertStringToInteger(const std::string &str, Int *out) {
   const char *this_str = str.c_str();
   char *end = nullptr;
   errno = 0;
-  int64_t i = SHERPA_STRTOLL(this_str, &end);
+  int64_t i = ROCK_STRTOLL(this_str, &end);
   if (end != this_str) {
     while (isspace(*end)) ++end;
   }
@@ -214,7 +214,7 @@ void ParseOptions::RegisterTmpl(const std::string &name, T *ptr,
   if (other_parser_ == nullptr) {
     this->RegisterCommon(name, ptr, doc, false);
   } else {
-    SHERPA_CHECK(prefix_ != "")
+    ROCK_CHECK(prefix_ != "")
         << "prefix: " << prefix_ << "\n"
         << "Cannot use empty prefix when registering with prefix.";
     std::string new_name = prefix_ + '.' + name;  // name becomes prefix.name
@@ -226,11 +226,11 @@ void ParseOptions::RegisterTmpl(const std::string &name, T *ptr,
 template <typename T>
 void ParseOptions::RegisterCommon(const std::string &name, T *ptr,
                                   const std::string &doc, bool is_standard) {
-  SHERPA_CHECK(ptr != nullptr);
+  ROCK_CHECK(ptr != nullptr);
   std::string idx = name;
   NormalizeArgName(&idx);
   if (doc_map_.find(idx) != doc_map_.end()) {
-    SHERPA_LOG(WARNING) << "Registering option twice, ignoring second time: "
+    ROCK_LOG(WARNING) << "Registering option twice, ignoring second time: "
                         << name;
   } else {
     this->RegisterSpecific(name, idx, ptr, doc, is_standard);
@@ -300,11 +300,11 @@ void ParseOptions::RegisterSpecific(const std::string &name,
 
 void ParseOptions::DisableOption(const std::string &name) {
   if (argv_ != nullptr) {
-    SHERPA_LOG(FATAL)
+    ROCK_LOG(FATAL)
         << "DisableOption must not be called after calling Read().";
   }
   if (doc_map_.erase(name) == 0) {
-    SHERPA_LOG(FATAL) << "Option " << name
+    ROCK_LOG(FATAL) << "Option " << name
                       << " was not registered so cannot be disabled: ";
   }
   bool_map_.erase(name);
@@ -319,7 +319,7 @@ int ParseOptions::NumArgs() const { return positional_args_.size(); }
 
 std::string ParseOptions::GetArg(int i) const {
   if (i < 1 || i > static_cast<int>(positional_args_.size())) {
-    SHERPA_LOG(FATAL) << "ParseOptions::GetArg, invalid index " << i;
+    ROCK_LOG(FATAL) << "ParseOptions::GetArg, invalid index " << i;
   }
 
   return positional_args_[i - 1];
@@ -342,7 +342,7 @@ static ShellType kShellType = kBash;
 // the program echoes its command-line arguments to the screen.
 static bool MustBeQuoted(const std::string &str, ShellType st) {
   // Only Bash is supported (for the moment).
-  SHERPA_CHECK_EQ(st, kBash) << "Invalid shell type.";
+  ROCK_CHECK_EQ(st, kBash) << "Invalid shell type.";
 
   const char *c = str.c_str();
   if (*c == '\0') {
@@ -357,7 +357,7 @@ static bool MustBeQuoted(const std::string &str, ShellType st) {
 
     // Just want to make sure that a space character doesn't get automatically
     // inserted here via an automated style-checking script, like it did before.
-    SHERPA_CHECK(!strchr(ok_chars[kBash], ' '));
+    ROCK_CHECK(!strchr(ok_chars[kBash], ' '));
 
     for (; *c != '\0'; ++c) {
       // For non-alphanumeric characters we have a list of characters which
@@ -383,7 +383,7 @@ static bool MustBeQuoted(const std::string &str, ShellType st) {
 // will get passed to the program in the same way.
 static std::string QuoteAndEscape(const std::string &str, ShellType st) {
   // Only Bash is supported (for the moment).
-  SHERPA_CHECK_EQ(st, kBash) << "Invalid shell type.";
+  ROCK_CHECK_EQ(st, kBash) << "Invalid shell type.";
 
   // For now we use the following rules:
   // In the normal case, we quote with single-quote "'", and to escape
@@ -471,7 +471,7 @@ int ParseOptions::Read(int argc, const char *const argv[]) {
       Trim(&value);
       if (!SetOption(key, value, has_equal_sign)) {
         PrintUsage(true);
-        SHERPA_LOG(FATAL) << "Invalid option " << argv[i];
+        ROCK_LOG(FATAL) << "Invalid option " << argv[i];
       }
     } else {
       break;
@@ -492,7 +492,7 @@ int ParseOptions::Read(int argc, const char *const argv[]) {
     std::ostringstream strm;
     for (int j = 0; j < argc; ++j) strm << Escape(argv[j]) << " ";
     strm << '\n';
-    SHERPA_LOG(INFO) << strm.str();
+    ROCK_LOG(INFO) << strm.str();
   }
   return i;
 }
@@ -533,7 +533,7 @@ void ParseOptions::PrintUsage(bool print_command_line /*=false*/) const {
     os << strm.str();
   }
 
-  SHERPA_LOG(INFO) << os.str();
+  ROCK_LOG(INFO) << os.str();
 }
 
 void ParseOptions::PrintConfig(std::ostream &os) const {
@@ -555,7 +555,7 @@ void ParseOptions::PrintConfig(std::ostream &os) const {
     } else if (string_map_.end() != string_map_.find(key)) {
       os << "'" << *string_map_.at(key) << "'";
     } else {
-      SHERPA_LOG(FATAL) << "PrintConfig: unrecognized option " << key
+      ROCK_LOG(FATAL) << "PrintConfig: unrecognized option " << key
                         << "[code error]";
     }
     os << '\n';
@@ -566,7 +566,7 @@ void ParseOptions::PrintConfig(std::ostream &os) const {
 void ParseOptions::ReadConfigFile(const std::string &filename) {
   std::ifstream is(filename.c_str(), std::ifstream::in);
   if (!is.good()) {
-    SHERPA_LOG(FATAL) << "Cannot open config file: " << filename;
+    ROCK_LOG(FATAL) << "Cannot open config file: " << filename;
   }
 
   std::string line, key, value;
@@ -583,7 +583,7 @@ void ParseOptions::ReadConfigFile(const std::string &filename) {
     if (line.length() == 0) continue;
 
     if (line.substr(0, 2) != "--") {
-      SHERPA_LOG(FATAL)
+      ROCK_LOG(FATAL)
           << "Reading config file " << filename << ": line " << line_number
           << " does not look like a line "
           << "from a Kaldi command-line program's config file: should "
@@ -598,7 +598,7 @@ void ParseOptions::ReadConfigFile(const std::string &filename) {
     Trim(&value);
     if (!SetOption(key, value, has_equal_sign)) {
       PrintUsage(true);
-      SHERPA_LOG(FATAL) << "Invalid option " << line << " in config file "
+      ROCK_LOG(FATAL) << "Invalid option " << line << " in config file "
                         << filename << ": line " << line_number;
     }
   }
@@ -607,7 +607,7 @@ void ParseOptions::ReadConfigFile(const std::string &filename) {
 void ParseOptions::SplitLongArg(const std::string &in, std::string *key,
                                 std::string *value,
                                 bool *has_equal_sign) const {
-  SHERPA_CHECK(in.substr(0, 2) == "--") << in;  // precondition.
+  ROCK_CHECK(in.substr(0, 2) == "--") << in;  // precondition.
   size_t pos = in.find_first_of('=', 0);
   if (pos == std::string::npos) {  // we allow --option for bools
     // defaults to empty.  We handle this differently in different cases.
@@ -616,7 +616,7 @@ void ParseOptions::SplitLongArg(const std::string &in, std::string *key,
     *has_equal_sign = false;
   } else if (pos == 2) {  // we also don't allow empty keys: --=value
     PrintUsage(true);
-    SHERPA_LOG(FATAL) << "Invalid option (no key): " << in;
+    ROCK_LOG(FATAL) << "Invalid option (no key): " << in;
   } else {                         // normal case: --option=value
     *key = in.substr(2, pos - 2);  // 2 because starts with --.
     *value = in.substr(pos + 1);
@@ -637,7 +637,7 @@ void ParseOptions::NormalizeArgName(std::string *str) const {
   }
   *str = out;
 
-  SHERPA_CHECK_GT(str->length(), 0);
+  ROCK_CHECK_GT(str->length(), 0);
 }
 
 void ParseOptions::Trim(std::string *str) const {
@@ -657,7 +657,7 @@ bool ParseOptions::SetOption(const std::string &key, const std::string &value,
                              bool has_equal_sign) {
   if (bool_map_.end() != bool_map_.find(key)) {
     if (has_equal_sign && value == "") {
-      SHERPA_LOG(FATAL) << "Invalid option --" << key << "=";
+      ROCK_LOG(FATAL) << "Invalid option --" << key << "=";
     }
     *(bool_map_[key]) = ToBool(value);
   } else if (int_map_.end() != int_map_.find(key)) {
@@ -670,7 +670,7 @@ bool ParseOptions::SetOption(const std::string &key, const std::string &value,
     *(double_map_[key]) = ToDouble(value);
   } else if (string_map_.end() != string_map_.find(key)) {
     if (!has_equal_sign) {
-      SHERPA_LOG(FATAL) << "Invalid option --" << key
+      ROCK_LOG(FATAL) << "Invalid option --" << key
                         << " (option format is --x=y).";
     }
     *(string_map_[key]) = value;
@@ -694,7 +694,7 @@ bool ParseOptions::ToBool(std::string str) const {
   }
   // if it is neither true nor false:
   PrintUsage(true);
-  SHERPA_LOG(FATAL)
+  ROCK_LOG(FATAL)
       << "Invalid format for boolean argument [expected true or false]: "
       << str;
   return false;  // never reached
@@ -703,28 +703,28 @@ bool ParseOptions::ToBool(std::string str) const {
 int32_t ParseOptions::ToInt(const std::string &str) const {
   int32_t ret = 0;
   if (!ConvertStringToInteger(str, &ret))
-    SHERPA_LOG(FATAL) << "Invalid integer option \"" << str << "\"";
+    ROCK_LOG(FATAL) << "Invalid integer option \"" << str << "\"";
   return ret;
 }
 
 uint32_t ParseOptions::ToUint(const std::string &str) const {
   uint32_t ret = 0;
   if (!ConvertStringToInteger(str, &ret))
-    SHERPA_LOG(FATAL) << "Invalid integer option \"" << str << "\"";
+    ROCK_LOG(FATAL) << "Invalid integer option \"" << str << "\"";
   return ret;
 }
 
 float ParseOptions::ToFloat(const std::string &str) const {
   float ret;
   if (!ConvertStringToReal(str, &ret))
-    SHERPA_LOG(FATAL) << "Invalid floating-point option \"" << str << "\"";
+    ROCK_LOG(FATAL) << "Invalid floating-point option \"" << str << "\"";
   return ret;
 }
 
 double ParseOptions::ToDouble(const std::string &str) const {
   double ret;
   if (!ConvertStringToReal(str, &ret))
-    SHERPA_LOG(FATAL) << "Invalid floating-point option \"" << str << "\"";
+    ROCK_LOG(FATAL) << "Invalid floating-point option \"" << str << "\"";
   return ret;
 }
 
@@ -782,4 +782,4 @@ template void ParseOptions::RegisterCommon(const std::string &name,
                                            const std::string &doc,
                                            bool is_standard);
 
-}  // namespace sherpa
+}  // namespace rockvad

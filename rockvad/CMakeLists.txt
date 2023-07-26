@@ -1,7 +1,7 @@
 add_subdirectory(csrc)
 
-if(ROCKVAD_ENABLE_C_API)
-  add_subdirectory(c-api)
+if(ROCKVAD_ENABLE_CPP_API)
+  add_subdirectory(cpp-api)
 endif()
 
 if(ROCKVAD_ENABLE_PYTHON)

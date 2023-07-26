@@ -1,18 +1,16 @@
-// sherpa/cpp_api/feature-config.h
-//
 // Copyright (c)  2022  Xiaomi Corporation
 //
 // This file is copied and modified from kaldi/src/util/parse-options.h
 
-#ifndef SHERPA_MNN_CSRC_PARSE_OPTIONS_H_
-#define SHERPA_MNN_CSRC_PARSE_OPTIONS_H_
+#ifndef ROCKVAD_CSRC_PARSE_OPTIONS_H_
+#define ROCKVAD_CSRC_PARSE_OPTIONS_H_
 
 #include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-namespace sherpa_mnn {
+namespace rockvad {
 
 class ParseOptions {
  public:
@@ -247,6 +245,6 @@ void ReadConfigsFromFile(const std::string &conf, C1 *c1, C2 *c2) {
   po.ReadConfigFile(conf);
 }
 
-}  // namespace sherpa
+}  // namespace rockvad
 
-#endif  // SHERPA_MNN_CSRC_PARSE_OPTIONS_H_
+#endif  // ROCKVAD_CSRC_PARSE_OPTIONS_H_

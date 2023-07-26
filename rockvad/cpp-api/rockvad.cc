@@ -1,4 +1,4 @@
-#include "rockvad/c-api/rockvad.h"
+#include "rockvad/cpp-api/rockvad.h"
 
 #include <chrono>
 #include <cstring>

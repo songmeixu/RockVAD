@@ -24,13 +24,13 @@
 
 #include "rockvad/csrc/log.h"
 
-#ifdef SHERPA_HAVE_EXECINFO_H
+#ifdef ROCK_HAVE_EXECINFO_H
 #include <execinfo.h>  // To get stack trace in error messages.
-#ifdef SHERPA_HAVE_CXXABI_H
+#ifdef ROCK_HAVE_CXXABI_H
 #include <cxxabi.h>  // For name demangling.
 // Useful to decode the stack trace, but only used if we have execinfo.h
-#endif  // SHERPA_HAVE_CXXABI_H
-#endif  // SHERPA_HAVE_EXECINFO_H
+#endif  // ROCK_HAVE_CXXABI_H
+#endif  // ROCK_HAVE_EXECINFO_H
 #include <stdlib.h>
 
 #include <chrono>  // NOLINT
@@ -62,7 +62,7 @@ std::ostream &operator<<(std::ostream &os, const log_watch &lw) {
   return os;
 }
 
-namespace sherpa_mnn {
+namespace rockvad {
 
 std::string GetDateTimeStr() {
   log_watch ms("%F %T.");
@@ -91,11 +91,11 @@ static bool LocateSymbolRange(const std::string &trace_name, std::size_t *begin,
   return *end != std::string::npos;
 }
 
-#ifdef SHERPA_HAVE_EXECINFO_H
+#ifdef ROCK_HAVE_EXECINFO_H
 static std::string Demangle(const std::string &trace_name) {
-#ifndef SHERPA_HAVE_CXXABI_H
+#ifndef ROCK_HAVE_CXXABI_H
   return trace_name;
-#else   // SHERPA_HAVE_CXXABI_H
+#else   // ROCK_HAVE_CXXABI_H
   // Try demangle the symbol. We are trying to support the following formats
   // produced by different platforms:
   //
@@ -120,13 +120,13 @@ static std::string Demangle(const std::string &trace_name) {
   }
   return trace_name.substr(0, begin) + symbol +
          trace_name.substr(end, std::string::npos);
-#endif  // SHERPA_HAVE_CXXABI_H
+#endif  // ROCK_HAVE_CXXABI_H
 }
-#endif  // SHERPA_HAVE_EXECINFO_H
+#endif  // ROCK_HAVE_EXECINFO_H
 
 std::string GetStackTrace() {
   std::string ans;
-#ifdef SHERPA_HAVE_EXECINFO_H
+#ifdef ROCK_HAVE_EXECINFO_H
   constexpr const std::size_t kMaxTraceSize = 50;
   constexpr const std::size_t kMaxTracePrint = 50;  // Must be even.
                                                     // Buffer for the trace.
@@ -158,8 +158,8 @@ std::string GetStackTrace() {
   // We must free the array of pointers allocated by backtrace_symbols(),
   // but not the strings themselves.
   free(trace_symbol);
-#endif  // SHERPA_HAVE_EXECINFO_H
+#endif  // ROCK_HAVE_EXECINFO_H
   return ans;
 }
 
-}  // namespace sherpa
+}  // namespace rockvad

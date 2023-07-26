@@ -5,35 +5,12 @@
 #include <vector>
 
 #include "rockvad/cpp-api/rockvad.h"
-#include "rockvad/csrc/parse-options.h"
 #include "rockvad/csrc/wav.h"
 
-static constexpr const char *kUsageMessage = R"(
-Online (streaming) voice activity detection with rockvad.
-
-Usage:
-  ./bin/rockvad-onnx \
-    --onnx-model=/path/to/silero_vad.opt.onnx \
-    /path/to/foo.wav
-)";
-
-int main(int32_t argc, char *argv[]) {
-  std::string onnx_model_path;
-
-  rockvad::ParseOptions po(kUsageMessage);
-  po.Register(
-      "onnx-model", &onnx_model_path,
-      "onnx model path, e.g. /audio/code/RockVAD/models/silero_vad.opt.onnx");
-  po.Read(argc, argv);
-  if (po.NumArgs() != 1) {
-    po.PrintUsage();
-    exit(EXIT_FAILURE);
-  }
-
-  std::string wav_filename = po.GetArg(1);
-
+int main() {
   // Read wav
-  wav::WavReader wav_reader(wav_filename);
+  // wav::WavReader wav_reader("../../en_example.wav");
+  wav::WavReader wav_reader("/audio/data/roborock/nihao_shitou/wav/smx/46.wav");
   std::vector<int16_t> data(wav_reader.num_samples());
   std::vector<float> input_wav(wav_reader.num_samples());
 
@@ -46,7 +23,7 @@ int main(int32_t argc, char *argv[]) {
   }
 
   // ===== Test configs =====
-
+  std::string path = "/audio/code/RockVAD/models/silero_vad.opt.onnx";
   int test_sr = 16000;
   int test_frame_ms = 96;
   float test_threshold = 0.5f;
@@ -54,7 +31,7 @@ int main(int32_t argc, char *argv[]) {
   int test_speech_pad_ms = 0;
   int test_window_samples = test_frame_ms * (test_sr / 1000);
 
-  VadIterator vad(onnx_model_path, test_sr, test_frame_ms, test_threshold,
+  VadIterator vad(path, test_sr, test_frame_ms, test_threshold,
                   test_min_silence_duration_ms, test_speech_pad_ms);
 
   for (int j = 0; j < wav_reader.num_samples(); j += test_window_samples) {
@@ -71,6 +48,4 @@ int main(int32_t argc, char *argv[]) {
               << "ms"
               << " ==" << std::endl;
   }
-
-  return 0;
 }
