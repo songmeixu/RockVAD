@@ -58,18 +58,20 @@ int main(int32_t argc, char *argv[]) {
                   test_min_silence_duration_ms, test_speech_pad_ms);
 
   for (int j = 0; j < wav_reader.num_samples(); j += test_window_samples) {
-    // std::cout << "== 4" << std::endl;
     std::vector<float> r{&input_wav[0] + j,
                          &input_wav[0] + j + test_window_samples};
-    auto start = std::chrono::high_resolution_clock::now();
+
+    // auto start = std::chrono::high_resolution_clock::now();
+
     // Predict and print throughout process time
     vad.predict(r);
-    auto end = std::chrono::high_resolution_clock::now();
-    auto elapsed_time =
-        std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
-    std::cout << "== Elapsed time: " << 1.0 * elapsed_time.count() / 1000000
-              << "ms"
-              << " ==" << std::endl;
+
+    // auto end = std::chrono::high_resolution_clock::now();
+    // auto elapsed_time =
+    //     std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+    // std::cout << "== Elapsed time: " << 1.0 * elapsed_time.count() / 1000000
+    //           << "ms"
+    //           << " ==" << std::endl;
   }
 
   return 0;

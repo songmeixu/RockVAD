@@ -1,5 +1,11 @@
 # issues
 
+- firstly, opt onnx model with onnxsim:
+
+  ```bash
+  onnxsim silero_vad.onnx silero_vad.onnxsim.onnx
+  ```
+
 - about onnxruntime warning: **CleanUnusedInitializersAndNodeArgs**
 
   ```bash
@@ -9,13 +15,13 @@
   # solution: use onnxruntime load and save optimized model
   conda activate silero
   python /audio/code/onnxruntime/onnxruntime/python/tools/transformers/optimizer.py \
-   --input /audio/code/RockVAD/models/silero_vad.onnx \
-   --output /audio/code/RockVAD/models/silero_vad.opt.onnx \
+   --input /audio/code/RockVAD/models/silero_vad.onnxsim.onnx \
+   --output /audio/code/RockVAD/models/silero_vad.onnxsim.opt.onnx \
    --opt_level 1 \
    --only_onnxruntime
   ```
 
-  - 注: 不要再使用onnxsim, onnxoptimizer等工具, 会导致继续warn/error (20230725)
+  - 注: 不要使用onnxoptimizer工具, 会导致error (20230725)
 
 ---
 
@@ -23,5 +29,5 @@
 
   ```bash
   conda activate onnx
-  python -m onnxruntime.tools.convert_onnx_models_to_ort silero_vad.opt.onnx --enable_type_reduction --target_platform arm
+  python -m onnxruntime.tools.convert_onnx_models_to_ort silero_vad.onnxsim.opt.onnx --enable_type_reduction --target_platform arm
   ```
