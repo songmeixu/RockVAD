@@ -1,3 +1,5 @@
+#include <limits.h>
+
 #include <vector>
 
 #include "onnxruntime_cxx_api.h"
@@ -5,28 +7,42 @@
 class VadIterator {
  public:
   // Construction
-  VadIterator(const std::string ModelPath, int Sample_rate, int frame_size,
-              float Threshold, int min_silence_duration_ms, int speech_pad_ms);
+  VadIterator(const std::string ModelPath, int Sample_rate = 16000,
+              int frame_size = 96, float Threshold = 0.3f,
+              int min_speech_duration_ms = 250,
+              int min_silence_duration_ms = 100, int speech_pad_ms = 30,
+              int max_speech_duration_s = INT_MAX);
 
   void reset_states();
 
-  void predict(const std::vector<float> &data);
+  float forward_chunk(const std::vector<float> &data_chunk);
+
+  void stream_predict(const std::vector<float> &data);
+
+  // with min_speech_duration_ms, and support return seconds
+  void stream_predict2(const std::vector<float> &data, bool return_seconds = true);
+
+  void segment_wav(const std::string &wav_path, bool return_seconds = true);
 
  private:
   // model config
-  int64_t window_size_samples;  // Assign when init, support 256 512 768 for 8k;
+  int window_size_samples;  // Assign when init, support 256 512 768 for 8k;
                                 // 512 1024 1536 for 16k.
   int sample_rate;
   int sr_per_ms;  // Assign when init, support 8 or 16
   float threshold;
-  int min_silence_samples;  // sr_per_ms * #ms
-  int speech_pad_samples;   // usually a
+
+  int min_speech_samples;  // sr_per_ms * #ms
+  int max_speech_samples;
+  int min_silence_samples;
+
+  int speech_pad_samples;
 
   // model states
   bool triggerd = false;
   unsigned int speech_start = 0;
   unsigned int speech_end = 0;
-  unsigned int temp_end = 0;
+  unsigned int temp_end = 0;  // to save potential segment end (and tolerate some silence)
   unsigned int current_sample = 0;
   // MAX 4294967295 samples / 8sample per ms / 1000 / 60 = 8947 minutes
   float output;

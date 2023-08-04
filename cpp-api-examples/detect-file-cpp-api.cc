@@ -40,7 +40,7 @@ int main() {
                          &input_wav[0] + j + test_window_samples};
     auto start = std::chrono::high_resolution_clock::now();
     // Predict and print throughout process time
-    vad.predict(r);
+    vad.stream_predict(r);
     auto end = std::chrono::high_resolution_clock::now();
     auto elapsed_time =
         std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
