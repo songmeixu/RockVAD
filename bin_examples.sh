@@ -21,7 +21,13 @@ bin/rockvad-onnx \
   --onnx-model=/audio/code/RockVAD/models/silero_vad.onnxsim.opt.ort \
   /audio/work/denoise/data/语音录音文件上传速度测试/百3录音/唤醒测试集/9/changjing9_21.wav
 
-#------------------------- linux -------------------------
+bin/rockvad-onnx \
+  --segment-wav=true \
+  --threshold=0.5 \
+  --onnx-model=/audio/code/RockVAD/models/silero_vad.onnxsim.opt.ort \
+  /audio/work/denoise/data/语音录音文件上传速度测试/百3录音/离线指令/7/changjing7_9.wav
+
+#------------------------- MR527 -------------------------
 # onnx
 LD_LIBRARY_PATH=lib:LD_LIBRARY_PATH \
 bin_release/rockvad-onnx-time \

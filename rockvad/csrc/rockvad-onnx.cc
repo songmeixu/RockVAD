@@ -59,8 +59,8 @@ int main(int32_t argc, char *argv[]) {
   int test_sr = 16000;
   int test_frame_ms = 96;
   float test_threshold = threshold;
-  int test_min_speech_duration_ms = 250;
-  int test_min_silence_duration_ms = 100;
+  int test_min_speech_duration_ms = 3000;
+  int test_min_silence_duration_ms = 2500;
   int test_speech_pad_ms = 30;
   int test_window_samples = test_frame_ms * (test_sr / 1000);
 
