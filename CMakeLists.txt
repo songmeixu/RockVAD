@@ -82,7 +82,7 @@ if(ROCKVAD_HAS_ALSA)
   add_definitions(-DROCKVAD_ENABLE_ALSA=1)
 endif()
 
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 if(WIN32)
   add_definitions(-DNOMINMAX) # Otherwise, std::max() and std::min() won't work

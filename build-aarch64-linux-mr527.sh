@@ -43,7 +43,6 @@ cmake \
   -DROCKVAD_ENABLE_CPP_API=ON \
   -DROCKVAD_ENABLE_TEST=OFF \
   -DROCKVAD_ENABLE_NPU=OFF \
-  -DMNN_BUILD_SHARED_LIBS=OFF \
   -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-mr527.toolchain.cmake \
   ..
 
