@@ -19,9 +19,19 @@ Usage:
 
 int main(int32_t argc, char *argv[]) {
   std::string onnx_model_path;
+
+  // ===== VAD configs =====
+  int sample_rate = 16000;
+  int window_frame_ms = 96;
+  float threshold = 0.5f;
+  ;
+  int min_speech_duration_ms = 200;
+  int min_silence_duration_ms = 500;
+  int speech_pad_ms = 300;
+
+  // ===== VAD MODE =====
   bool stream = true;
   bool segment_wav = false;
-  float threshold = 0.3f;
 
   rockvad::ParseOptions po(kUsageMessage);
 
@@ -31,7 +41,6 @@ int main(int32_t argc, char *argv[]) {
   po.Register("stream", &stream, "streaming mode");
   po.Register("segment-wav", &segment_wav, "segment wav file");
   po.Register("threshold", &threshold, "threshold for vad");
-
 
   po.Read(argc, argv);
   if (po.NumArgs() != 1) {
@@ -45,6 +54,7 @@ int main(int32_t argc, char *argv[]) {
   wav::WavReader wav_reader(wav_filename);
   std::vector<int16_t> data(wav_reader.num_samples());
   std::vector<float> input_wav(wav_reader.num_samples());
+  std::vector<float> output_wav;
 
   for (int i = 0; i < wav_reader.num_samples(); i++) {
     data[i] = static_cast<int16_t>(*(wav_reader.data() + i));
@@ -54,26 +64,18 @@ int main(int32_t argc, char *argv[]) {
     input_wav[i] = static_cast<float>(data[i]) / 32768;
   }
 
-  // ===== Test configs =====
+  int window_samples = window_frame_ms * (sample_rate / 1000);
 
-  int test_sr = 16000;
-  int test_frame_ms = 96;
-  float test_threshold = threshold;
-  int test_min_speech_duration_ms = 3000;
-  int test_min_silence_duration_ms = 2500;
-  int test_speech_pad_ms = 30;
-  int test_window_samples = test_frame_ms * (test_sr / 1000);
-
-  VadIterator vad(onnx_model_path, test_sr, test_frame_ms, test_threshold,
-                  test_min_speech_duration_ms, test_min_silence_duration_ms,
-                  test_speech_pad_ms);
+  VadIterator vad(onnx_model_path, sample_rate, window_frame_ms, threshold,
+                  min_speech_duration_ms, min_silence_duration_ms,
+                  speech_pad_ms);
 
   if (segment_wav) {
     vad.segment_wav(wav_filename);
-  } else {
-    for (int j = 0; j < wav_reader.num_samples(); j += test_window_samples) {
+  } else if (0) {
+    for (int j = 0; j < wav_reader.num_samples(); j += window_samples) {
       std::vector<float> r{&input_wav[0] + j,
-                           &input_wav[0] + j + test_window_samples};
+                           &input_wav[0] + j + window_samples};
 
       // auto start = std::chrono::high_resolution_clock::now();
 
@@ -88,6 +90,40 @@ int main(int32_t argc, char *argv[]) {
       //           << "ms"
       //           << " ==" << std::endl;
     }
+  } else {
+    std::vector<timestamp_t> stamps;
+
+    // ==============================================
+    // ==== = Example 1 of full function  =====
+    // ==============================================
+    vad.process(input_wav);
+
+    // 1.a get_speech_timestamps
+    stamps = vad.get_speech_timestamps();
+    for (int i = 0; i < stamps.size(); i++) {
+      std::cout << stamps[i].c_str() << std::endl;
+    }
+
+    // 1.b collect_chunks output wav
+    vad.collect_chunks(input_wav, output_wav);
+
+    // 1.c drop_chunks output wav
+    vad.drop_chunks(input_wav, output_wav);
+
+    // ==============================================
+    // ===== Example 2 of simple full function  =====
+    // ==============================================
+    vad.process(input_wav, output_wav);
+
+    stamps = vad.get_speech_timestamps();
+    for (int i = 0; i < stamps.size(); i++) {
+      std::cout << stamps[i].c_str() << std::endl;
+    }
+
+    // ==============================================
+    // ===== Example 3 of full function  =====
+    // ==============================================
+    for (int i = 0; i < 2; i++) vad.process(input_wav, output_wav);
   }
 
   return 0;

@@ -111,7 +111,7 @@ class WavReader {
         }
         default:
           fprintf(stderr, "unsupported quantization bits");
-          exit(1);
+          break;
       }
     }
     fclose(fp);

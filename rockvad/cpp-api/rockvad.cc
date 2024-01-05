@@ -10,7 +10,7 @@
 #include "rockvad/csrc/wav.h"
 
 VadIterator::VadIterator(const std::string ModelPath, int Sample_rate,
-                         int frame_size, float Threshold,
+                         int windows_frame_size, float Threshold,
                          int min_speech_duration_ms,
                          int min_silence_duration_ms, int speech_pad_ms,
                          int max_speech_duration_s) {
@@ -22,15 +22,17 @@ VadIterator::VadIterator(const std::string ModelPath, int Sample_rate,
   min_speech_samples = sr_per_ms * min_speech_duration_ms;
   max_speech_samples = max_speech_duration_s == INT_MAX
                            ? INT_MAX
-                           : sr_per_ms * max_speech_duration_s;
+                           : sample_rate * max_speech_duration_s -
+                                 window_size_samples - 2 * speech_pad_samples;
   min_silence_samples = sr_per_ms * min_silence_duration_ms;
+  min_silence_samples_at_max_speech = sr_per_ms * 98;
   speech_pad_samples = sr_per_ms * speech_pad_ms;
-  window_size_samples = sr_per_ms * frame_size;
+  window_size_samples = sr_per_ms * windows_frame_size;
 
   input.resize(window_size_samples);
   input_node_dims[0] = 1;
   input_node_dims[1] = window_size_samples;
-  // std::cout << "== Input size" << input.size() << std::endl;
+
   _h.resize(size_hc);
   _c.resize(size_hc);
   sr.resize(1);
@@ -57,23 +59,26 @@ void VadIterator::reset_states() {
   // Call reset before each audio start
   std::memset(_h.data(), 0.0f, _h.size() * sizeof(float));
   std::memset(_c.data(), 0.0f, _c.size() * sizeof(float));
-  triggerd = false;
+  triggered = false;
   temp_end = 0;
   current_sample = 0;
+
+  prev_end = next_start = 0;
+
+  speeches.clear();
+  current_speech = timestamp_t();
 }
 
 // Call it in predict func. if you prefer raw bytes input.
 void VadIterator::bytes_to_float_tensor(const char *pcm_bytes) {
-  std::memcpy(input.data(), pcm_bytes, window_size_samples * sizeof(int16_t));
+  const int16_t *in_data = reinterpret_cast<const int16_t *>(pcm_bytes);
   for (int i = 0; i < window_size_samples; i++) {
     input[i] =
-        static_cast<float>(input[i]) / 32768;  // int16_t normalized to float
+        static_cast<float>(in_data[i]) / 32768;  // int16_t normalized to float
   }
 }
 
 float VadIterator::forward_chunk(const std::vector<float> &data_chunk) {
-  // bytes_to_float_tensor(data);
-
   // Infer
   // Create ort tensors
   input.assign(data_chunk.begin(), data_chunk.end());
@@ -99,96 +104,192 @@ float VadIterator::forward_chunk(const std::vector<float> &data_chunk) {
       ort_inputs.size(), output_node_names.data(), output_node_names.size());
 
   // Output probability & update h,c recursively
-  float output = ort_outputs[0].GetTensorMutableData<float>()[0];
+  float speech_prob = ort_outputs[0].GetTensorMutableData<float>()[0];
   float *hn = ort_outputs[1].GetTensorMutableData<float>();
   std::memcpy(_h.data(), hn, size_hc * sizeof(float));
   float *cn = ort_outputs[2].GetTensorMutableData<float>();
   std::memcpy(_c.data(), cn, size_hc * sizeof(float));
 
-  return output;
+  return speech_prob;
 }
 
 void VadIterator::stream_predict(const std::vector<float> &data) {
   // Output probability
-  output = forward_chunk(data);
+  float speech_prob = forward_chunk(data);
 
   // Push forward sample index
   current_sample += window_size_samples;
 
   // Reset temp_end when > threshold
-  if ((output >= threshold) && (temp_end != 0)) {
-    temp_end = 0;
-  }
-  // 1) Silence
-  if ((output < threshold) && (triggerd == false)) {
-    // printf("{ silence: %.3f s }\n", 1.0 * current_sample / sample_rate);
-  }
-  // 2) Speaking
-  if ((output >= (threshold - 0.15)) && (triggerd == true)) {
-    // printf("{ speaking_2: %.3f s }\n", 1.0 * current_sample / sample_rate);
-  }
-
-  // 3) Start
-  if ((output >= threshold) && (triggerd == false)) {
-    triggerd = true;
-    speech_start = current_sample - window_size_samples -
-                   speech_pad_samples;  // minus window_size_samples to get
-                                        // precise start time point.
-    printf("{ start: %.3f s }\n", 1.0 * speech_start / sample_rate);
-  }
-
-  // 4) End
-  if ((output < (threshold - 0.15)) && (triggerd == true)) {
-    if (temp_end == 0) {
-      temp_end = current_sample;
-    }
-    // a. silence < min_slience_samples, continue speaking
-    if ((current_sample - temp_end) < min_silence_samples) {
-      // printf("{ speaking_4: %.3f s }\n", 1.0 * current_sample /
-      // sample_rate); printf("");
-    }
-    // b. silence >= min_slience_samples, end speaking
-    else {
-      speech_end = temp_end ? temp_end + speech_pad_samples
-                            : current_sample + speech_pad_samples;
+  if ((speech_prob >= threshold)) {
+    if (temp_end != 0) {
       temp_end = 0;
-      triggerd = false;
-      printf("{ end: %.3f s }\n", 1.0 * speech_end / sample_rate);
+      if (next_start < prev_end)
+        next_start = current_sample - window_size_samples;
     }
+
+    // 1) Start
+    if (triggered == false) {
+      triggered = true;
+
+      current_speech.start = current_sample - window_size_samples;
+    }
+    return;
+  }
+
+  // 2) Speak too long
+  if ((triggered == true) &&
+      ((current_sample - current_speech.start) > max_speech_samples)) {
+    if (prev_end > 0) {
+      current_speech.end = prev_end;
+      speeches.push_back(current_speech);
+      current_speech = timestamp_t();
+
+      // previously reached silence(< neg_thres) and is still not speech(<
+      // thres)
+      if (next_start < prev_end)
+        triggered = false;
+      else {
+        current_speech.start = next_start;
+      }
+      prev_end = 0;
+      next_start = 0;
+      temp_end = 0;
+
+    } else {
+      current_speech.end = current_sample;
+      speeches.push_back(current_speech);
+      current_speech = timestamp_t();
+      prev_end = 0;
+      next_start = 0;
+      temp_end = 0;
+      triggered = false;
+    }
+    return;
+  }
+
+  // 3) Keep going (speaking or silence)
+  if ((speech_prob >= (threshold - 0.15)) && (speech_prob < threshold)) {
+    return;
+  }
+
+  if ((speech_prob < (threshold - 0.15))) {
+    // 4) End
+    if (triggered == true) {
+      if (temp_end == 0) {
+        temp_end = current_sample;
+      }
+      if (current_sample - temp_end > min_silence_samples_at_max_speech)
+        prev_end = temp_end;
+      // a. silence < min_slience_samples, continue speaking
+      if ((current_sample - temp_end) < min_silence_samples) {
+      }
+      // b. silence >= min_slience_samples, end speaking
+      else {
+        current_speech.end = temp_end;
+        if (current_speech.end - current_speech.start > min_speech_samples) {
+          speeches.push_back(current_speech);
+          current_speech = timestamp_t();
+          prev_end = 0;
+          next_start = 0;
+          temp_end = 0;
+          triggered = false;
+        }
+      }
+    } else {
+      // may first windows see end state.
+    }
+
+    return;
   }
 }
+
+void VadIterator::process(const std::vector<float> &input_wav) {
+  reset_states();
+
+  audio_length_samples = input_wav.size();
+
+  for (int j = 0; j < audio_length_samples; j += window_size_samples) {
+    if (j + window_size_samples > audio_length_samples) break;
+    std::vector<float> r{&input_wav[0] + j,
+                         &input_wav[0] + j + window_size_samples};
+    stream_predict(r);
+  }
+
+  if (current_speech.start >= 0) {
+    current_speech.end = audio_length_samples;
+    speeches.push_back(current_speech);
+    current_speech = timestamp_t();
+    prev_end = 0;
+    next_start = 0;
+    temp_end = 0;
+    triggered = false;
+  }
+};
+
+void VadIterator::process(const std::vector<float> &input_wav,
+                          std::vector<float> &output_wav) {
+  process(input_wav);
+  collect_chunks(input_wav, output_wav);
+}
+
+void VadIterator::collect_chunks(const std::vector<float> &input_wav,
+                                 std::vector<float> &output_wav) {
+  output_wav.clear();
+  for (int i = 0; i < speeches.size(); i++) {
+    std::vector<float> slice(&input_wav[speeches[i].start],
+                             &input_wav[speeches[i].end]);
+    output_wav.insert(output_wav.end(), slice.begin(), slice.end());
+  }
+};
+
+void VadIterator::drop_chunks(const std::vector<float> &input_wav,
+                              std::vector<float> &output_wav) {
+  output_wav.clear();
+  int current_start = 0;
+  for (int i = 0; i < speeches.size(); i++) {
+    std::vector<float> slice(&input_wav[current_start],
+                             &input_wav[speeches[i].start]);
+    output_wav.insert(output_wav.end(), slice.begin(), slice.end());
+    current_start = speeches[i].end;
+  }
+
+  std::vector<float> slice(&input_wav[current_start],
+                           &input_wav[input_wav.size()]);
+  output_wav.insert(output_wav.end(), slice.begin(), slice.end());
+};
 
 void VadIterator::stream_predict2(const std::vector<float> &data,
                                   bool return_seconds) {
   // Output probability
-  output = forward_chunk(data);
+  float speech_prob = forward_chunk(data);
 
   // Push forward sample index
   current_sample += window_size_samples;
 
   // Reset temp_end when > threshold
-  if ((output >= threshold) && (temp_end != 0)) {
+  if ((speech_prob >= threshold) && (temp_end != 0)) {
     temp_end = 0;
   }
   // 1) Silence
-  if ((output < threshold) && (triggerd == false)) {
+  if ((speech_prob < threshold) && (triggered == false)) {
     // printf("{ silence: %.3f s }\n", 1.0 * current_sample / sample_rate);
   }
   // 2) Speaking
-  if ((output >= (threshold - 0.15)) && (triggerd == true)) {
+  if ((speech_prob >= (threshold - 0.15)) && (triggered == true)) {
     // printf("{ speaking_2: %.3f s }\n", 1.0 * current_sample / sample_rate);
   }
 
   // 3) Start
-  if ((output >= threshold) && (triggerd == false)) {
-    triggerd = true;
+  if ((speech_prob >= threshold) && (triggered == false)) {
+    triggered = true;
     speech_start = current_sample - window_size_samples -
                    speech_pad_samples;  // minus window_size_samples to get
                                         // precise start time point.
   }
 
   // 4) End
-  if ((output < (threshold - 0.15)) && (triggerd == true)) {
+  if ((speech_prob < (threshold - 0.15)) && (triggered == true)) {
     if (temp_end == 0) {
       temp_end = current_sample;
     }
@@ -211,7 +312,7 @@ void VadIterator::stream_predict2(const std::vector<float> &data,
         }
       }
       temp_end = 0;
-      triggerd = false;
+      triggered = false;
     }
   }
 }
@@ -253,30 +354,30 @@ void VadIterator::segment_wav(const std::string &wav_path,
     // Push forward sample index
     current_sample = window_size_samples * (i + 1);
 
-    output = speech_probs[i];
+    float speech_prob = speech_probs[i];
 
     // Reset temp_end when > threshold
-    if ((output >= threshold) && (temp_end != 0)) {
+    if ((speech_prob >= threshold) && (temp_end != 0)) {
       temp_end = 0;
     }
     // 1) Silence
-    if ((output < threshold) && (triggerd == false)) {
+    if ((speech_prob < threshold) && (triggered == false)) {
       // printf("{ silence: %.3f s }\n", 1.0 * current_sample / sample_rate);
     }
     // 2) Speaking
-    if ((output >= (threshold - 0.15)) && (triggerd == true)) {
+    if ((speech_prob >= (threshold - 0.15)) && (triggered == true)) {
       // printf("{ speaking_2: %.3f s }\n", 1.0 * current_sample / sample_rate);
     }
 
     // 3) Start
-    if ((output >= threshold) && (triggerd == false)) {
-      triggerd = true;
+    if ((speech_prob >= threshold) && (triggered == false)) {
+      triggered = true;
       // minus window_size_samples to get precise start time point.
       current_speech.first = current_sample - window_size_samples;
     }
 
     // 4) End
-    if ((output < (threshold - 0.15)) && (triggerd == true)) {
+    if ((speech_prob < (threshold - 0.15)) && (triggered == true)) {
       if (temp_end == 0) {
         temp_end = current_sample;
       }
@@ -293,7 +394,7 @@ void VadIterator::segment_wav(const std::string &wav_path,
         }
         current_speech = std::make_pair(-1.0f, -1.0f);
         temp_end = 0;
-        triggerd = false;
+        triggered = false;
       }
     }
   }
