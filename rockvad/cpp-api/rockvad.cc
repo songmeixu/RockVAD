@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstring>
+#include <filesystem>  // 需要C++17或更高版本
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -318,6 +319,7 @@ void VadIterator::stream_predict2(const std::vector<float> &data,
 }
 
 void VadIterator::segment_wav(const std::string &wav_path,
+                              const std::string &output_dir,
                               bool return_seconds) {
   // Read wav
   wav::WavReader wav_reader(wav_path);
@@ -435,24 +437,48 @@ void VadIterator::segment_wav(const std::string &wav_path,
       printf("{ start: %.3f s }\n", 1.0 * speech.first / sample_rate);
       printf("{ end: %.3f s }\n", 1.0 * speech.second / sample_rate);
     } else {
-      printf("{ start: %d }\n", speech.first);
-      printf("{ end: %d }\n", speech.second);
+      printf("{ start: %.3f }\n", speech.first);
+      printf("{ end: %.3f }\n", speech.second);
     }
   }
 
   // save segment wavs
-  size_t suffix_pos = wav_path.rfind(".wav");
+  //
+
+  std::filesystem::path output_path(output_dir);
+
+  if (output_dir.empty()) {
+    // 使用 wav_path 所在的目录作为输出目录
+    std::filesystem::path path(wav_path);
+    output_path = path.parent_path();
+  }
+
+  // Create the output directory if it does not exist
+  if (!std::filesystem::exists(output_path)) {
+    std::filesystem::create_directories(output_path);
+  }
+
+  // Ensure the output directory ends with a slash
+  if (!output_path.empty() && output_path.string().back() != '/') {
+    output_path += '/';
+  }
+
+  size_t suffix_pos = wav_path.find_last_of("/\\");
+  std::string base_name = (suffix_pos != std::string::npos)
+                              ? wav_path.substr(suffix_pos + 1)
+                              : wav_path;
+  base_name = base_name.substr(0, base_name.rfind(".wav"));
+
   for (int i = 0; i < speeches.size(); ++i) {
     std::vector<float> segment_wav(input_wav.begin() + speeches[i].first,
                                    input_wav.begin() + speeches[i].second);
 
-    for (size_t i = 0; i < segment_wav.size(); ++i) {
-      segment_wav[i] *= 32768.0f;
+    for (size_t j = 0; j < segment_wav.size(); ++j) {
+      segment_wav[j] *= 32768.0f;
     }
 
-    std::string segment_wav_path = wav_path;
-    std::string new_suffix = "_" + std::to_string(i) + ".wav";
-    segment_wav_path.replace(suffix_pos, 4, new_suffix);
+    std::string segment_wav_path =
+        output_path.string() + base_name + "_" + std::to_string(i) + ".wav";
 
     wav::WavWriter wav_writer(segment_wav.data(), segment_wav.size(), 1,
                               sample_rate, 16);

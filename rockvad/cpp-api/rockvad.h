@@ -73,7 +73,9 @@ class VadIterator {
   void stream_predict2(const std::vector<float> &data,
                        bool return_seconds = true);
 
-  void segment_wav(const std::string &wav_path, bool return_seconds = true);
+  void segment_wav(const std::string &wav_path,
+                   const std::string &output_dir = "",
+                   bool return_seconds = true);
 
  private:
   // model config

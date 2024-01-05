@@ -21,6 +21,7 @@ Usage:
     --min-silence-duration-ms=<minimum silence duration in milliseconds> \
     --speech-pad-ms=<speech padding in milliseconds> \
     --segment-wav=<segment wav true/false> \
+    --output-dir=<output directory for segmented wavs> \
     /path/to/foo.wav
 
 Options:
@@ -33,6 +34,7 @@ Options:
   --speech-pad-ms             Extra padding added to speech segments in milliseconds (default: 300).
   --stream                    Enable streaming mode (default: true).
   --segment-wav               Segment the WAV file (default: false).
+  --output-dir                Output directory for segmented WAV files.
 )";
 
 int main(int32_t argc, char *argv[]) {
@@ -49,6 +51,7 @@ int main(int32_t argc, char *argv[]) {
   // ===== VAD MODE =====
   bool stream = true;
   bool segment_wav = false;
+  std::string output_dir = "";
 
   rockvad::ParseOptions po(kUsageMessage);
 
@@ -67,6 +70,8 @@ int main(int32_t argc, char *argv[]) {
               "Speech padding in milliseconds");
   po.Register("stream", &stream, "Streaming mode");
   po.Register("segment-wav", &segment_wav, "Segment WAV file");
+  po.Register("output-dir", &output_dir,
+              "Output directory for segmented WAV files");
 
   po.Read(argc, argv);
   if (po.NumArgs() != 1) {
@@ -91,7 +96,7 @@ int main(int32_t argc, char *argv[]) {
                   speech_pad_ms);
 
   if (segment_wav) {
-    vad.segment_wav(wav_filename);
+    vad.segment_wav(wav_filename, output_dir);
   } else if (0) {
     int window_samples = window_frame_ms * (sample_rate / 1000);
 

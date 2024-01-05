@@ -73,7 +73,7 @@ if(ROCKVAD_ENABLE_DEBUG_FOR_RELEASE)
   string(APPEND CMAKE_CXX_FLAGS_RELEASE " -g -O0")
 endif()
 
-set(CMAKE_CXX_STANDARD 14 CACHE STRING "The C++ version to be used.")
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "The C++ version to be used.")
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(CheckIncludeFileCXX)
