@@ -27,7 +27,7 @@ bin/rockvad-onnx \
   --onnx-model=/audio/code/RockVAD/models/silero_vad.onnxsim.opt.ort \
   /audio/work/denoise/data/语音录音文件上传速度测试/百3录音/离线指令/7/changjing7_9.wav
 
-#------------------------- MR527 -------------------------
+#------------------------- ARM64 -------------------------
 # onnx
 LD_LIBRARY_PATH=lib:LD_LIBRARY_PATH \
 bin_release/rockvad-onnx-time \
