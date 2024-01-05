@@ -7,9 +7,6 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-#if __cplusplus < 201703L
-#include <memory>
-#endif
 
 #include "onnxruntime_cxx_api.h"
 
@@ -33,45 +30,9 @@ class timestamp_t {
     return (start == a.start && end == a.end);
   };
   std::string c_str() {
-    // return std::format("timestamp {:08d}, {:08d}", start, end);
-    return format("{start:%08d,end:%08d}", start, end);
-  };
-
- private:
-  std::string format(const char *fmt, ...) {
     char buf[256];
-
-    va_list args;
-    va_start(args, fmt);
-    const auto r = std::vsnprintf(buf, sizeof buf, fmt, args);
-    va_end(args);
-
-    if (r < 0)
-      // conversion failed
-      return {};
-
-    const size_t len = r;
-    if (len < sizeof buf)
-      // we fit in the buffer
-      return {buf, len};
-
-#if __cplusplus >= 201703L
-    // C++17: Create a string and write to its underlying array
-    std::string s(len, '\0');
-    va_start(args, fmt);
-    std::vsnprintf(s.data(), len + 1, fmt, args);
-    va_end(args);
-
-    return s;
-#else
-    // C++11 or C++14: We need to allocate scratch memory
-    auto vbuf = std::unique_ptr<char[]>(new char[len + 1]);
-    va_start(args, fmt);
-    std::vsnprintf(vbuf.get(), len + 1, fmt, args);
-    va_end(args);
-
-    return {vbuf.get(), len};
-#endif
+    std::snprintf(buf, sizeof(buf), "{start:%08d,end:%08d}", start, end);
+    return std::string(buf);
   };
 };
 
